@@ -11,6 +11,7 @@ sessions = {}
 
 # Load libc for system calls
 libc = cdll.LoadLibrary("libc.so.6")
+print('libc:', libc)
 
 # Constants for system calls
 O_RDWR = 2
@@ -35,6 +36,12 @@ def fork_process():
 def exec_command(command):
     # Executes a command in the child process
     libc.execvp(c_char_p(command[0]), (c_char_p(arg) for arg in command))
+
+def read_data(fd, buffer_size=1024):
+    #Read using the libc read system call
+    buffer = (c_char_p * buffer_size)()
+    bytes_read = libc.read(c_int(fd), buffer, c_int(buffer_size))
+    return b"".join([buffer[i] for i in range(bytes_read)])
 
 @app.route("/create_session", methods=["POST"])
 def create_session():
@@ -70,7 +77,7 @@ def execute_command():
         r, _, _ = select.select([fd_master], [], [], 0.1)
         if fd_master in r:
             try:
-                data = os.read(fd_master, 1024)
+                data = read_data(fd_master)
                 output += data
                 if not data or data.endswith(b"$ "):
                     break
